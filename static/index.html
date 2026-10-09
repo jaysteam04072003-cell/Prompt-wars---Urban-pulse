@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UrbanPulse | Smart City Exploration & Safety Navigator</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+            }
+          },
+          boxShadow: {
+            'card': '0 2px 8px -2px rgba(15, 23, 42, 0.08), 0 1px 4px -1px rgba(15, 23, 42, 0.04)',
+            'card-hover': '0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 3px 8px -2px rgba(15, 23, 42, 0.06)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js for Location Comparator -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col h-screen overflow-hidden font-sans antialiased">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 z-30 px-3 sm:px-4 py-2.5 flex items-center justify-between flex-shrink-0 shadow-xs">
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- Toggle Sidebar Button (visible on map) -->
+      <button id="sidebarToggleBtn" onclick="toggleSidebar()" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Toggle Sidebar">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+
+      <div onclick="showCityGateway()" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-500 via-amber-500 to-rose-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white flex-shrink-0 cursor-pointer">
+        <i data-lucide="compass" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 onclick="showCityGateway()" class="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-1.5 cursor-pointer">
+            UrbanPulse
+          </h1>
+
+          <!-- Active City Selector Dropdown in Header -->
+          <div class="relative">
+            <select id="headerCitySelect" onchange="handleHeaderCityChange(this.value)" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-800 text-[11px] font-bold py-1 px-2.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer">
+              <option value="pune">Pune (Kasa Kay Pune)</option>
+              <option value="ahmedabad">Ahmedabad (Kem Cho Amdavad)</option>
+              <option value="mumbai">Mumbai (Ram Ram Maharashtra)</option>
+              <option value="delhi">Delhi (Namaste Dilli)</option>
+              <option value="bangalore">Bangalore (Gothilla Bengaluru)</option>
+            </select>
+          </div>
+
+          <span class="hidden md:inline-flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-full font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live Telemetry
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500 hidden lg:block">Explore Culture & Food • Navigate Safety & Chaos Across 5 Cities</p>
+      </div>
+    </div>
+
+    <!-- Action Controls -->
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- 5 Cities Directory Button -->
+      <button onclick="showCityGateway()" id="navGatewayBtn" class="flex items-center space-x-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-orange-500"></i>
+        <span>All 5 Cities</span>
+      </button>
+
+      <!-- Live Map Quick Button -->
+      <button onclick="showCityMap()" id="navMapBtn" class="flex items-center space-x-1 bg-orange-50 border border-orange-200 text-orange-700 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        <i data-lucide="map" class="w-3.5 h-3.5"></i>
+        <span>Live Map</span>
+      </button>
+
+      <!-- Safe Haven (Police & Hospitals) Action -->
+      <button id="safeHavenBtn" onclick="toggleSafeHavenMode()" class="hidden sm:flex items-center space-x-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 px-2.5 py-1.5 rounded-lg text-xs font-bold transition">
+        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-600"></i>
+        <span>🚨 Police & Hospitals</span>
+      </button>
+
+      <!-- Theme Switch (Clean White vs Night Safety) -->
+      <button id="nightModeBtn" onclick="toggleNightSafetyMode()" class="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-medium transition shadow-2xs">
+        <i data-lucide="moon" class="w-3.5 h-3.5 text-indigo-600"></i>
+        <span class="hidden md:inline">Night Safety</span>
+      </button>
+
+      <!-- Citizen Report Action Button -->
+      <button onclick="openReportModal()" class="flex items-center space-x-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow-sm shadow-orange-500/25 transition">
+        <i data-lucide="megaphone" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">Report Alert</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- VIEW 1: 5 CITIES DIRECTORY GATEWAY (COURSE-STYLE CATALOG) -->
+  <main id="viewGateway" class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8 custom-scrollbar">
+    <div class="max-w-6xl mx-auto space-y-6">
+      
+      <!-- HERO BANNER -->
+      <div class="bg-gradient-to-r from-orange-50 via-amber-50 to-rose-50 border border-orange-200/80 rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
+        <div class="max-w-2xl relative z-10 space-y-3">
+          <span class="inline-flex items-center gap-1.5 text-xs font-bold bg-orange-500 text-white px-2.5 py-1 rounded-md shadow-2xs">
+            ✨ URBAN EXPLORATION & SAFETY PLATFORM
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            City Life: Exploring, Experiencing & Navigating the Chaos
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+            Choose any city to explore legendary street food, ancient heritage monuments, live accident blackspots, and 24/7 emergency police & hospital grids.
+          </p>
+
+          <!-- Search Bar in Gateway -->
+          <div class="pt-2 flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+              <input type="text" id="cityGatewaySearch" oninput="filterCitiesGateway(this.value)" placeholder="Search city name, state, or food (e.g. Pune, Kem Cho, Misal, Biryani)..." 
+                class="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 shadow-xs">
+            </div>
+            <button onclick="document.getElementById('cityGatewaySearch').value=''; filterCitiesGateway('');" class="bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-semibold">
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Region Filter Pills -->
+      <div class="flex items-center justify-between pb-1 flex-wrap gap-2">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Available City Zones (5 Hubs)</h3>
+          <p class="text-xs text-slate-500">Curated with authentic vernacular greetings & real-world telemetry</p>
+        </div>
+        <div class="flex gap-1.5 text-xs font-medium">
+          <button onclick="filterCityRegion('all')" class="region-pill active-pill px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">All (5)</button>
+          <button onclick="filterCityRegion('Maharashtra')" class="region-pill px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">Maharashtra</button>
+          <button onclick="filterCityRegion('Gujarat')" class="region-pill px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">Gujarat</button>
+          <button onclick="filterCityRegion('National Capital Region')" class="region-pill px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">Delhi NCR</button>
+          <button onclick="filterCityRegion('Karnataka')" class="region-pill px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">Karnataka</button>
+        </div>
+      </div>
+
+      <!-- 5 CITIES COURSE-STYLE CARD GRID -->
+      <div id="citiesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered dynamically from CITIES_CATALOG -->
+      </div>
+
+    </div>
+  </main>
+
+  <!-- VIEW 2: INTERACTIVE LIVE MAP & EXPLORER (PUNE & OTHER CITIES) -->
+  <div id="viewMap" class="flex flex-1 overflow-hidden relative hidden">
+
+    <!-- LEFT SIDEBAR / TABBED DRAWER -->
+    <aside id="sidebar" class="w-full md:w-[460px] lg:w-[480px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-20 transition-all duration-300 shadow-sm">
+      
+      <!-- NAVIGATION TABS -->
+      <nav class="flex border-b border-slate-200 bg-slate-50/80 px-2 py-1.5 gap-1 overflow-x-auto text-xs font-medium">
+        <button onclick="switchTab('explore')" id="tab-explore" class="tab-btn active-tab flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+          <i data-lucide="map-pin" class="w-4 h-4 text-orange-500"></i> Explore & POIs
+        </button>
+        <button onclick="switchTab('safenav')" id="tab-safenav" class="tab-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i> SafeNav
+        </button>
+        <button onclick="switchTab('compare')" id="tab-compare" class="tab-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+          <i data-lucide="scale" class="w-4 h-4 text-indigo-600"></i> Compare
+        </button>
+        <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+          <i data-lucide="radio" class="w-4 h-4 text-rose-500"></i> Citizen Pulse
+        </button>
+        <button onclick="switchTab('concierge')" id="tab-concierge" class="tab-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition whitespace-nowrap">
+          <i data-lucide="bot" class="w-4 h-4 text-cyan-600"></i> AI Guide
+        </button>
+      </nav>
+
+      <!-- TAB CONTENT PANES -->
+      <div class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/60">
+
+        <!-- 1. EXPLORE & POIs TAB -->
+        <div id="pane-explore" class="tab-pane space-y-3.5">
+          <!-- Search & Filter Controls -->
+          <div class="space-y-2">
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+              <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Search city food, heritage, spots..." 
+                class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 shadow-2xs">
+            </div>
+
+            <!-- Category Pills -->
+            <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px]">
+              <button onclick="filterCategory('all')" class="cat-pill active-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 whitespace-nowrap font-medium shadow-2xs">All Spots</button>
+              <button onclick="filterCategory('heritage')" class="cat-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 whitespace-nowrap font-medium flex items-center gap-1 shadow-2xs">🏛️ Heritage</button>
+              <button onclick="filterCategory('food')" class="cat-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 whitespace-nowrap font-medium flex items-center gap-1 shadow-2xs">🍛 Street Food</button>
+              <button onclick="filterCategory('budget')" class="cat-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 whitespace-nowrap font-medium flex items-center gap-1 shadow-2xs">🎒 Stays</button>
+              <button onclick="filterCategory('hazards')" class="cat-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-rose-600 whitespace-nowrap font-medium flex items-center gap-1 shadow-2xs">⚠️ Hazards</button>
+            </div>
+          </div>
+
+          <!-- Places Container -->
+          <div id="placesList" class="space-y-2.5">
+            <!-- Dynamic place cards injected here -->
+          </div>
+        </div>
+
+        <!-- 2. SAFENAV ROUTE PLANNER TAB -->
+        <div id="pane-safenav" class="tab-pane hidden space-y-3.5">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-card">
+            <div class="flex items-center justify-between mb-1.5">
+              <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i> Smart Route Safety Engine
+              </h3>
+              <span id="routeEngineBadge" class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">SafePath AI</span>
+            </div>
+            <p class="text-[11px] text-slate-600 mb-3 leading-relaxed">
+              Compares the <strong>Fastest Shortcut</strong> against the <strong>Well-Lit & High-Footfall Corridor</strong> so you avoid deserted stretches or accident blackspots.
+            </p>
+
+            <!-- Route Selector -->
+            <label class="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Select Curated Route:</label>
+            <select id="routeSelect" onchange="renderSelectedRoute()" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500">
+              <option value="route-1">Shaniwar Wada (Old City) ➔ FC Road Strip (Shivajinagar)</option>
+              <option value="route-2">Swargate Bus Terminus ➔ German Bakery (Koregaon Park)</option>
+            </select>
+          </div>
+
+          <!-- Dynamic Route Option Cards -->
+          <div id="routeDetailsContainer" class="space-y-3">
+            <!-- Dynamic route cards injected here -->
+          </div>
+        </div>
+
+        <!-- 3. SPOT & NEIGHBORHOOD COMPARATOR (BEST VS WORST) -->
+        <div id="pane-compare" class="tab-pane hidden space-y-3.5">
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-card">
+            <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <i data-lucide="scale" class="w-4 h-4 text-indigo-600"></i> Locality Head-to-Head
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label class="block text-[11px] font-medium text-slate-500 mb-1">Zone A</label>
+                <select id="compareZoneA" onchange="updateComparison()" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 font-medium">
+                  <option value="koregaon_park">Koregaon Park (KP)</option>
+                  <option value="fc_road_deccan">FC Road / Deccan</option>
+                  <option value="viman_nagar">Viman Nagar</option>
+                  <option value="kothrud">Kothrud</option>
+                  <option value="swargate">Swargate</option>
+                  <option value="katraj">Katraj</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-slate-500 mb-1">Zone B</label>
+                <select id="compareZoneB" onchange="updateComparison()" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 font-medium">
+                  <option value="swargate">Swargate</option>
+                  <option value="koregaon_park">Koregaon Park (KP)</option>
+                  <option value="fc_road_deccan">FC Road / Deccan</option>
+                  <option value="viman_nagar">Viman Nagar</option>
+                  <option value="kothrud">Kothrud</option>
+                  <option value="katraj">Katraj</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radar Chart Container -->
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-card">
+            <h4 class="text-xs font-bold text-slate-700 mb-1 text-center">Safety vs Cleanliness vs Cost vs Walkability</h4>
+            <div class="relative h-56 w-full flex items-center justify-center">
+              <canvas id="comparisonChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Comparison Verdict & Breakdowns -->
+          <div id="comparisonVerdict" class="space-y-3">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+
+        <!-- 4. CITIZEN PULSE FEED TAB -->
+        <div id="pane-feed" class="tab-pane hidden space-y-3.5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                <i data-lucide="radio" class="w-4 h-4 text-rose-500 animate-pulse"></i> Live Citizen Reports
+              </h3>
+              <p class="text-[11px] text-slate-500">Crowdsourced alerts with community upvotes & verification</p>
+            </div>
+            <button onclick="openReportModal()" class="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-2xs">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Post Alert
+            </button>
+          </div>
+
+          <!-- Filter tags -->
+          <div class="flex gap-1.5 text-[11px]">
+            <button onclick="filterReports('all')" class="report-filter-pill active-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-2xs">All</button>
+            <button onclick="filterReports('safety_hazard')" class="report-filter-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-2xs">⚠️ Hazards</button>
+            <button onclick="filterReports('hidden_gem')" class="report-filter-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-2xs">💎 Hidden Gems</button>
+            <button onclick="filterReports('traffic_choke')" class="report-filter-pill px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-2xs">🚦 Traffic</button>
+          </div>
+
+          <!-- Feed List -->
+          <div id="reportsFeedList" class="space-y-3">
+            <!-- Dynamic reports injected here -->
+          </div>
+        </div>
+
+        <!-- 5. AI CITY CONCIERGE TAB -->
+        <div id="pane-concierge" class="tab-pane hidden flex flex-col h-[calc(100vh-140px)]">
+          <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-card mb-2 flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold text-xs">
+              AI
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-900">UrbanPulse AI Guide</h4>
+              <p class="text-[10px] text-slate-500">Context-aware NLP guide for city food, heritage, and safety</p>
+            </div>
+          </div>
+
+          <!-- Quick Suggestion Chips -->
+          <div id="aiPromptChips" class="flex gap-1.5 overflow-x-auto pb-2 text-[10px]">
+            <button onclick="sendQuickPrompt('Where can I get street food safely at 9 PM on FC Road?')" class="bg-white hover:bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-slate-700 whitespace-nowrap font-medium shadow-2xs">
+              🍛 Late-night food
+            </button>
+            <button onclick="sendQuickPrompt('Explain why Navale Bridge is dangerous and how to avoid it')" class="bg-white hover:bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-slate-700 whitespace-nowrap font-medium shadow-2xs">
+              ⚠️ Traffic Blackspots
+            </button>
+            <button onclick="sendQuickPrompt('Tell me the history of Shaniwar Wada and Peshwas')" class="bg-white hover:bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-slate-700 whitespace-nowrap font-medium shadow-2xs">
+              🏛️ Heritage History
+            </button>
+          </div>
+
+          <!-- Chat messages scroll area -->
+          <div id="chatMessages" class="flex-1 overflow-y-auto space-y-2.5 p-1 custom-scrollbar text-xs">
+            <div class="flex items-start gap-2">
+              <div class="w-6 h-6 rounded-full bg-cyan-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                AI
+              </div>
+              <div id="aiWelcomeBubble" class="bg-white border border-slate-200 rounded-2xl p-3 text-slate-800 max-w-[88%] leading-relaxed shadow-card">
+                Namaskar! I am your <strong>UrbanPulse AI Guide</strong>. Ask me anything about food gems, historical monuments, accident blackspots, or safe night walks.
+              </div>
+            </div>
+          </div>
+
+          <!-- Input bar -->
+          <form onsubmit="handleChatSubmit(event)" class="mt-2 pt-2 border-t border-slate-200 flex gap-2">
+            <input type="text" id="chatInput" placeholder="Ask about spots, safety, routes..." 
+              class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-cyan-500 shadow-2xs">
+            <button type="button" onclick="triggerVoiceInput('chatInput')" title="Speak with microphone" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 rounded-xl flex items-center justify-center shadow-2xs">
+              <i data-lucide="mic" class="w-4 h-4 text-orange-500"></i>
+            </button>
+            <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 shadow-2xs">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT / CENTER: INTERACTIVE LEAFLET MAP -->
+    <main class="flex-1 relative h-full">
+      <div id="map" class="w-full h-full bg-slate-100"></div>
+
+      <!-- Floating "Back to Cities" pill on Map -->
+      <div class="absolute top-4 left-4 z-[1000] flex items-center gap-1.5">
+        <button onclick="showCityGateway()" class="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200/90 shadow-md text-xs font-bold text-slate-800 hover:text-orange-600 transition">
+          <i data-lucide="arrow-left" class="w-4 h-4 text-orange-500"></i>
+          <span>All Cities</span>
+        </button>
+
+        <div class="hidden sm:flex items-center gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-slate-200/90 shadow-md">
+          <button onclick="filterCategory('all')" class="text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-slate-100 text-slate-700">All</button>
+          <button onclick="filterCategory('heritage')" class="text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-amber-50 text-amber-800 flex items-center gap-1">🏛️ Heritage</button>
+          <button onclick="filterCategory('food')" class="text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-orange-50 text-orange-800 flex items-center gap-1">🍛 Food</button>
+          <button onclick="filterCategory('hazards')" class="text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-rose-50 text-rose-700 flex items-center gap-1">⚠️ Danger</button>
+        </div>
+      </div>
+
+      <!-- Floating Map Layer Controls Overlay (Top Right) -->
+      <div class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-3 shadow-md text-xs space-y-2">
+        <div class="font-bold text-slate-800 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-orange-500"></i> Map Layers
+        </div>
+        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer text-[11px]">
+          <input type="checkbox" id="layerPoliceToggle" onchange="toggleLayer('police')" class="rounded border-slate-300 text-blue-600 focus:ring-0">
+          <span class="flex items-center gap-1 font-medium"><span class="w-2 h-2 rounded-full bg-blue-600"></span> Police Stations</span>
+        </label>
+        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer text-[11px]">
+          <input type="checkbox" id="layerHospitalsToggle" onchange="toggleLayer('hospitals')" class="rounded border-slate-300 text-rose-600 focus:ring-0">
+          <span class="flex items-center gap-1 font-medium"><span class="w-2 h-2 rounded-full bg-rose-600"></span> 24/7 Hospitals</span>
+        </label>
+        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer text-[11px]">
+          <input type="checkbox" id="layerHazardsToggle" checked onchange="toggleLayer('hazards')" class="rounded border-slate-300 text-rose-500 focus:ring-0">
+          <span class="flex items-center gap-1 font-medium"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Accident Hazards</span>
+        </label>
+        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer text-[11px]">
+          <input type="checkbox" id="layerCorridorsToggle" checked onchange="toggleLayer('corridors')" class="rounded border-slate-300 text-emerald-500 focus:ring-0">
+          <span class="flex items-center gap-1 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Lit Corridors</span>
+        </label>
+      </div>
+
+      <!-- Floating Map Legend (Bottom Left) -->
+      <div class="absolute bottom-4 left-4 z-[1000] hidden sm:flex items-center space-x-3 bg-white/95 backdrop-blur-md border border-slate-200/90 px-3 py-1.5 rounded-xl text-[11px] text-slate-700 shadow-md font-medium">
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Heritage</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span> Food</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span> Police</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span> Hospital</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Hazard</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Safe Path</span>
+      </div>
+
+      <!-- Floating Emergency SOS Quick Dial Panel (Appears in Safe Haven Mode) -->
+      <div id="safeHavenPanel" class="absolute bottom-4 right-4 z-[1000] hidden bg-white/95 backdrop-blur-md border border-rose-200 rounded-2xl p-3.5 shadow-2xl max-w-xs text-xs space-y-2 animate-scaleUp">
+        <div class="flex items-center justify-between pb-1.5 border-b border-rose-100">
+          <div class="flex items-center gap-1.5 text-rose-700 font-bold">
+            <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+            <span>🚨 City Emergency Safe Grid</span>
+          </div>
+          <button onclick="toggleSafeHavenMode()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+        </div>
+        <p class="text-[11px] text-slate-600">Tap to instantly dial verified city emergency responders:</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          <a href="tel:112" class="flex items-center justify-center gap-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-2xs">
+            <i data-lucide="phone-call" class="w-3 h-3"></i> 112 (Police)
+          </a>
+          <a href="tel:108" class="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-2xs">
+            <i data-lucide="phone-call" class="w-3 h-3"></i> 108 (Ambulance)
+          </a>
+          <a href="tel:1091" class="flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-2xs">
+            <i data-lucide="shield" class="w-3 h-3"></i> 1091 (Women)
+          </a>
+          <a href="tel:100" class="flex items-center justify-center gap-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition shadow-2xs">
+            <i data-lucide="phone" class="w-3 h-3"></i> 100 (City Control)
+          </a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: PLACE DETAILS & AUDIO GUIDE -->
+  <div id="placeModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl relative animate-scaleUp text-slate-800">
+      <button onclick="closePlaceModal()" class="absolute top-3 right-3 bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 w-8 h-8 rounded-full flex items-center justify-center z-10 transition shadow-sm border border-slate-200">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      
+      <!-- Modal Hero Image -->
+      <div class="h-48 w-full relative">
+        <img id="modalPlaceImg" src="" alt="Place" class="w-full h-full object-cover">
+        <div class="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent"></div>
+        <div class="absolute bottom-3 left-4 right-4">
+          <span id="modalPlaceCategory" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-500 text-white shadow-2xs"></span>
+          <h2 id="modalPlaceName" class="text-xl font-bold text-slate-900 mt-1"></h2>
+          <p id="modalPlaceZone" class="text-xs text-slate-600 font-medium"></p>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-4 space-y-3 text-xs">
+        <p id="modalPlaceTagline" class="text-orange-700 font-semibold italic"></p>
+        <p id="modalPlaceDesc" class="text-slate-600 leading-relaxed"></p>
+
+        <!-- Metric Badges with Progress Visuals -->
+        <div class="grid grid-cols-3 gap-2 text-center py-2.5 bg-slate-50 rounded-xl border border-slate-200/80">
+          <div>
+            <div class="text-[10px] text-slate-500 font-medium">Safety Score</div>
+            <div id="modalPlaceSafety" class="text-sm font-bold text-emerald-600">92%</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-500 font-medium">Night Lighting</div>
+            <div id="modalPlaceLighting" class="text-sm font-bold text-indigo-600">88%</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-500 font-medium">Budget Level</div>
+            <div id="modalPlaceBudget" class="text-sm font-bold text-amber-600">₹₹</div>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/80">
+          <span class="font-bold text-amber-900">Cultural Legacy: </span>
+          <span id="modalPlaceCultural" class="text-amber-800"></span>
+        </div>
+
+        <!-- Audio Guide Player Button -->
+        <div class="pt-2 flex items-center justify-between border-t border-slate-200">
+          <button id="audioGuideBtn" onclick="playAudioGuide()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl font-semibold text-xs transition shadow-sm">
+            <i data-lucide="volume-2" class="w-4 h-4"></i>
+            <span id="audioGuideLabel">Listen to Audio Guide</span>
+          </button>
+          
+          <button onclick="navigateHereFromModal()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl font-semibold text-xs transition shadow-sm">
+            <i data-lucide="navigation" class="w-4 h-4"></i> SafeNav Here
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SUBMIT CITIZEN REPORT -->
+  <div id="reportModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-2xl relative text-slate-800">
+      <button onclick="closeReportModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center space-x-2.5 mb-3.5">
+        <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+          <i data-lucide="megaphone" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Post Live Citizen Report</h3>
+          <p class="text-[11px] text-slate-500">Alert fellow citizens about hazards or share a hidden gem</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleReportSubmit(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-700 mb-1 font-semibold">Alert Category</label>
+          <select id="reportCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 font-medium">
+            <option value="safety_hazard">⚠️ Safety Hazard / Accident Risk</option>
+            <option value="traffic_choke">🚦 Traffic Choke / Waterlogging</option>
+            <option value="hidden_gem">💎 Hidden Food / Culture Gem</option>
+            <option value="cleanliness_issue">🧹 Cleanliness / Garbage Alert</option>
+            <option value="safety_positive">💡 Positive: Well-Lit / Safe Update</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 mb-1 font-semibold">Title</label>
+          <input type="text" id="reportTitle" required placeholder="e.g. Broken streetlight on main avenue" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 placeholder-slate-400 font-medium">
+        </div>
+
+        <div>
+          <label class="block text-slate-700 mb-1 font-semibold">Zone / Landmark</label>
+          <input type="text" id="reportZone" required placeholder="e.g. Navale Bridge, Manek Chowk, Marine Drive" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 placeholder-slate-400 font-medium">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-slate-700 font-semibold">Description</label>
+            <button type="button" onclick="triggerVoiceInput('reportDesc')" class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+              <i data-lucide="mic" class="w-3.5 h-3.5"></i> Dictate Voice Note
+            </button>
+          </div>
+          <textarea id="reportDesc" rows="3" required placeholder="Describe what you observed so authorities or explorers stay safe..."
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 placeholder-slate-400 font-medium"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 mb-1 font-semibold">Your Name (Optional)</label>
+          <input type="text" id="reportAuthor" placeholder="Anonymous Explorer" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 placeholder-slate-400 font-medium">
+        </div>
+
+        <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-orange-500/20 transition">
+          Broadcast Alert to Live City Map
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-[3000] bg-white border border-emerald-400 text-slate-900 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs translate-y-20 opacity-0 transition-all duration-300 font-medium">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+    <span id="toastMsg">Action successful</span>
+  </div>
+
+  <!-- APP SCRIPTS -->
+  <script src="/static/app.js?v=5"></script>
+</body>
+</html>
