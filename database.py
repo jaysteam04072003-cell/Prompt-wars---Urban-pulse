@@ -8,7 +8,7 @@ import json
 import os
 from pune_data import PUNE_CITIZEN_REPORTS_INITIAL
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "pune_urbanpulse.db")
+DB_PATH = "/tmp/pune_urbanpulse.db" if os.environ.get("VERCEL") else os.path.join(os.path.dirname(__file__), "pune_urbanpulse.db")
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
